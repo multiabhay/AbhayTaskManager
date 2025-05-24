@@ -1,0 +1,366 @@
+/* Base styles */
+html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+body { font-family: 'Inter', sans-serif; @apply bg-gray-900 text-gray-200; }
+
+/* Layout */
+#project-sidebar { width: 250px; flex-shrink: 0; display: flex; flex-direction: column; overflow-y: auto; }
+#main-content { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; position: relative; }
+#main-content-area { flex-grow: 1; overflow-y: auto; @apply p-4 md:p-8; }
+#kanban-grid { min-height: 0; } /* Important for flex column in kanban-column */
+
+/* Top Right Controls - Added Animation */
+ .control-button {
+     background: none; border: none; padding: 0.5rem; border-radius: 9999px; /* Fully rounded */
+     color: #9ca3af; /* gray-400 */
+     cursor: pointer;
+     transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, transform 0.15s ease-in-out, opacity 0.15s ease-in-out;
+ }
+ .control-button:not(:disabled):hover {
+     color: #ffffff; /* white */
+     background-color: #374151; /* gray-700 */
+     transform: scale(1.1);
+ }
+ .control-button:not(:disabled):active {
+     transform: scale(0.95);
+ }
+ .control-button:disabled {
+     opacity: 0.5;
+     cursor: not-allowed;
+ }
+
+
+/* Project Sidebar List */
+#project-list { list-style: none; padding: 0; margin: 0; flex-grow: 1; }
+.project-list-item {
+    display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.8rem; margin-bottom: 0.25rem; border-radius: 0.375rem;
+    cursor: grab; /* Indicate draggable */
+    transition: background-color 0.2s, color 0.2s; font-weight: 500;
+    position: relative; /* Needed for drag indicator pseudo-element */
+}
+ .project-list-item:active { cursor: grabbing; } /* Change cursor while dragging */
+.project-list-item.active { @apply bg-blue-600 text-white; }
+.project-list-item:not(.active) { @apply text-gray-300 hover:bg-gray-700 hover:text-white; }
+ .project-list-item:not(.active) .project-item-controls button {
+     color: #9ca3af; /* default icon color */
+ }
+ .project-list-item.active .project-item-controls button {
+     color: inherit; /* Use active text color */
+ }
+
+.project-list-item-name { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; /* Keep pointer for click/double-click */ }
+
+ /* Container for Pin and Delete buttons */
+ .project-item-controls {
+     display: flex;
+     align-items: center;
+     gap: 0.4rem; /* Space between buttons */
+     flex-shrink: 0;
+     opacity: 0; /* Hide by default */
+     transition: opacity 0.2s ease-in-out;
+ }
+
+ .project-list-item:hover .project-item-controls { opacity: 1; } /* Show on hover */
+ /* Also show controls for the active item */
+.project-list-item.active .project-item-controls { opacity: 1; }
+
+ .project-item-controls button {
+     background: none; border: none; cursor: pointer;
+     padding: 0; /* Remove padding */
+     font-size: 0.9rem; /* Adjust size */
+     transition: color 0.2s, transform 0.1s ease;
+     flex-shrink: 0;
+ }
+ .project-item-controls button:hover {
+     transform: scale(1.15);
+ }
+ .project-item-controls button:active {
+     transform: scale(0.9);
+ }
+
+ .project-pin-button:hover { color: #facc15; /* yellow-400 */ } /* Pin icon hover */
+ .project-delete-button:hover { color: #ef4444; /* red-500 */ } /* Trash icon hover */
+
+
+.project-list-separator { height: 1px; background-color: #4a5568; margin: 0.75rem 0; }
+.project-list-item.static-item { /* Style for non-draggable items like "All Important" */
+    cursor: default;
+     opacity: 1 !important; /* Always show controls if any */
+}
+.project-list-item.static-item .project-item-controls { opacity: 1; }
+
+
+/* Sidebar Add Project Button Animation */
+#add-project-button-sidebar {
+    transition: background-color 0.15s ease-in-out, transform 0.15s ease-in-out;
+}
+#add-project-button-sidebar:hover {
+    transform: scale(1.03);
+}
+#add-project-button-sidebar:active {
+    transform: scale(0.98);
+}
+
+
+/* Kanban Styles */
+.kanban-column { min-height: 300px; transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out; display: flex; flex-direction: column; } /* Added border-color transition */
+.task-list { flex-grow: 1; /* min-height: 100px; Remove explicit min-height */ overflow-y: auto; padding-bottom: 1px; /* Prevent last item border being cut off */ }
+.task-card {
+    cursor: grab;
+    /* *** ANIMATION: Added box-shadow and transform to transition *** */
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, opacity 0.2s ease-in-out;
+    overflow: visible; /* Needed for shadow/transform */
+    position: relative; /* Needed for z-index if overlapping occurs */
+    border-top: 1px solid transparent; /* Add transparent borders for indicators */
+    border-bottom: 1px solid transparent;
+}
+.task-card:hover {
+     transform: translateY(-2px); /* Subtle lift */
+     @apply shadow-lg; /* Tailwind class for larger shadow */
+}
+.task-card:active { cursor: grabbing; }
+.task-header { cursor: pointer; position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; }
+.task-header-left { display: flex; align-items: center; flex-grow: 1; gap: 0.5rem; min-width: 0; } /* Ensure left side can shrink */
+.task-header-right { display: flex; align-items: center; gap: 0.25rem; flex-shrink: 0; opacity: 0; transition: opacity 0.2s ease-in-out; }
+.task-card:hover .task-header-right { opacity: 1; }
+.task-name-container { flex-grow: 1; min-width: 0; } /* Ensure name container can shrink */
+.task-name-span { cursor: text; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task-action-button {
+    background: none; border: none; cursor: pointer; color: #6b7280; /* gray-500 */
+    transition: color 0.2s, transform 0.1s ease;
+    font-size: 0.9rem; padding: 0 0.25rem;
+}
+.task-action-button:hover {
+    color: #e5e7eb; /* gray-200 */
+    transform: scale(1.15);
+}
+.task-action-button:active {
+    transform: scale(0.9);
+}
+.task-action-button.important { color: #facc15; } /* yellow-400 */
+.task-action-button.delete:hover { color: #ef4444; } /* red-500 */
+
+/* Task Details Expand/Collapse Animation */
+.task-details {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-out, padding 0.4s ease-out, opacity 0.3s ease-out;
+    padding-left: 0.75rem; /* px-3 */
+    padding-right: 0.75rem; /* px-3 */
+    padding-bottom: 0;
+    position: relative; /* Needed for z-index if overlapping occurs */
+    z-index: 1;
+    opacity: 0; /* Start hidden */
+}
+.task-details.open {
+    max-height: 1000px; /* Large enough to accommodate content */
+    padding-bottom: 0.75rem; /* pb-3 */
+    transition: max-height 0.5s ease-in, padding 0.5s ease-in, opacity 0.4s 0.1s ease-in; /* Delay opacity slightly */
+    opacity: 1; /* Fade in */
+}
+.task-description { font-size: 0.875rem; margin-top: 0.25rem; margin-bottom: 0.5rem; overflow-wrap: break-word; cursor: text; min-height: 1.5em; }
+.task-due-date { font-size: 0.8rem; margin-bottom: 0.75rem; color: #a0aec0; display: flex; align-items: center; gap: 0.3rem; }
+.task-due-date-text { cursor: default; }
+.task-due-date-value.overdue { color: #f87171; font-weight: 500; } /* red-400 */
+.task-due-date-value.not-set { color: #718096; } /* gray-500 */
+.task-due-date-edit-icon {
+    cursor: pointer; color: #9ca3af; /* gray-400 */
+    transition: color 0.2s, transform 0.1s ease;
+}
+.task-due-date-edit-icon:hover {
+    color: #e5e7eb; /* gray-200 */
+    transform: scale(1.15);
+}
+.task-due-date-edit-icon:active {
+    transform: scale(0.9);
+}
+.inline-edit-date { padding: 0.1rem 0.2rem; margin: 0; border: 1px solid #4a5568; border-radius: 0.25rem; background-color: #4a5568; color: #e2e8f0; font-size: 0.8rem; line-height: inherit; display: inline-block; width: auto; }
+
+/* Subtask Styles */
+.subtask-list { margin-top: 0.5rem; padding-left: 0.5rem; }
+.subtask-item {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.25rem; padding: 0.25rem; font-size: 0.875rem; cursor: grab;
+    transition: background-color 0.2s; border-radius: 0.25rem;
+    border-top: 1px solid transparent; /* Add transparent borders for indicators */
+    border-bottom: 1px solid transparent;
+}
+.subtask-item:active { cursor: grabbing; }
+.subtask-item-content { display: flex; align-items: center; flex-grow: 1; }
+.subtask-item input[type="checkbox"] { margin-right: 0.5rem; cursor: pointer; flex-shrink: 0; }
+.subtask-item span { pointer-events: auto; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; }
+.subtask-item span.completed { text-decoration: line-through; color: #718096; } /* gray-500 */
+.subtask-action-button {
+    background: none; border: none; color: #9ca3af; /* gray-400 */
+    cursor: pointer; padding: 0 0.2rem; font-size: 0.8rem; opacity: 0;
+    transition: opacity 0.2s, color 0.2s, transform 0.1s ease;
+    flex-shrink: 0; /* margin-left: 0.5rem; Removed margin-left, gap handles spacing */
+}
+ .subtask-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem; /* Space between subtask buttons */
+    opacity: 0;
+     transition: opacity 0.2s ease-in-out;
+ }
+.subtask-item:hover .subtask-action-button,
+.subtask-item:hover .subtask-item-actions { opacity: 0.7; }
+
+.subtask-action-button:hover {
+    opacity: 1; color: #3b82f6; /* blue-500 */
+    transform: scale(1.15);
+}
+.subtask-action-button:active {
+     transform: scale(0.9);
+}
+ .subtask-action-button.delete:hover { color: #ef4444; } /* red-500 */
+ .subtask-action-button.convert:hover { color: #facc15; } /* yellow-400 */
+ .subtask-action-button.duplicate:hover { color: #34d399; } /* green-400 */
+
+
+.add-subtask-form-container { margin-top: 0.75rem; }
+.add-subtask-form { display: flex; gap: 0.5rem; padding: 0.5rem 0.25rem; }
+.add-subtask-input { flex-grow: 1; padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+/* Add button CSS rule remains, but button element is removed via JS */
+.add-subtask-button {
+    border: none;
+    cursor: pointer;
+}
+
+.task-project-label { font-size: 0.75rem; margin-top: 0.25rem; display: block; }
+
+/* Inline editing */
+.inline-edit-input, .inline-edit-textarea { width: 100%; padding: 0.1rem 0.2rem; margin: 0; border: 1px solid #4a5568; border-radius: 0.25rem; background-color: #4a5568; color: #e2e8f0; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1); font-size: inherit; font-weight: inherit; line-height: inherit; }
+.inline-edit-textarea { resize: vertical; min-height: 50px; }
+.editing { display: none !important; } /* Hide original element during edit */
+
+/* Add Task Button in Column */
+.add-task-button-container { margin-top: 1rem; }
+.add-task-column-button {
+    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, transform 0.15s ease-in-out;
+    display: inline-flex; /* Use flex to align icon and text */
+    align-items: center; /* Center items vertically */
+    gap: 0.3rem; /* Space between icon and text (if text exists) */
+}
+.add-task-column-button:hover {
+    transform: scale(1.05);
+}
+.add-task-column-button:active {
+    transform: scale(0.95);
+}
+
+
+/* Drag & Drop Highlights */
+.kanban-column.drag-over {
+    border: 2px dashed #3b82f6 !important; /* blue-500 */
+    background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Task Card Drag Over Indicator */
+.task-card.drag-over-item-top {
+     border-top: 2px dashed #34d399 !important; /* green-400 */
+}
+ .task-card.drag-over-item-bottom {
+     border-bottom: 2px dashed #34d399 !important; /* green-400 */
+ }
+ /* Remove default outline if using top/bottom borders */
+ .task-card.drag-over-task {
+     outline: none !important;
+ }
+
+
+/* Subtask Item Drag Over Indicator */
+ .subtask-item.drag-over-item-top {
+     border-top: 2px dashed #facc15 !important; /* yellow-400 */
+ }
+  .subtask-item.drag-over-item-bottom {
+      border-bottom: 2px dashed #facc15 !important; /* yellow-400 */
+  }
+  /* Remove default outline if using top/bottom borders */
+ .subtask-item.drag-over-subtask {
+     outline: none !important;
+ }
+
+
+.dragging {
+    opacity: 0.6;
+    transform: scale(1.03) rotate(1deg); /* Slight scale and rotation */
+    @apply ring-2 ring-blue-500 shadow-xl; /* Tailwind ring and larger shadow */
+}
+.subtask-dragging {
+    opacity: 0.5;
+    @apply bg-gray-600; /* Slightly darker background when dragging */
+}
+
+/* Sidebar Drag/Drop Indicator */
+ .project-list-item.drag-over-indicator {
+     border-top: 2px dashed #3b82f6; /* blue-500 */
+     margin-top: -2px; /* Compensate for added border */
+ }
+/* Specific style for dropping *below* the last item */
+ #project-list .project-list-item:last-of-type.drag-over-indicator-bottom {
+     border-bottom: 2px dashed #3b82f6; /* blue-500 */
+     margin-bottom: -2px; /* Compensate */
+ }
+
+/* Sidebar item being dragged */
+ .project-list-item.sidebar-dragging {
+    opacity: 0.4; /* Less transparent than task dragging */
+    background-color: #4a5568; /* gray-600 */
+ }
+
+
+/* Modal Styles - Enhanced Animation */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 1000;
+    opacity: 0; visibility: hidden;
+    transition: opacity 0.25s ease-out, visibility 0s linear 0.25s; /* Visibility change after fade */
+}
+.modal-overlay.open {
+    opacity: 1; visibility: visible;
+    transition: opacity 0.25s ease-in, visibility 0s linear 0s;
+}
+.modal-content {
+    padding: 1.5rem 2rem; width: 90%; max-width: 500px;
+    transform: scale(0.95); /* Start slightly smaller */
+    opacity: 0; /* Start transparent */
+    transition: transform 0.25s ease-out, opacity 0.2s ease-out;
+}
+.modal-overlay.open .modal-content {
+    transform: scale(1); /* Scale to full size */
+    opacity: 1; /* Fade in */
+    transition: transform 0.25s ease-in, opacity 0.2s 0.05s ease-in; /* Delay opacity slightly */
+}
+.modal-close-button {
+    position: absolute; top: 0.75rem; right: 0.75rem;
+    background: none; border: none; font-size: 1.5rem; line-height: 1;
+    cursor: pointer;
+    transition: transform 0.1s ease, color 0.1s ease;
+}
+.modal-close-button:hover {
+    transform: scale(1.2); color: #fff;
+}
+.modal-close-button:active {
+    transform: scale(1);
+}
+
+/* Modal Button Animations */
+#modal-save-task-button, #modal-cancel-task-button,
+#modal-save-project-button, #modal-cancel-project-button,
+#modal-done-settings-button, #import-data-button-modal, #export-data-button-modal,
+#confirm-yes-button, #confirm-no-button {
+    transition: background-color 0.15s ease-in-out, transform 0.15s ease-in-out;
+}
+#modal-save-task-button:hover, #modal-cancel-task-button:hover,
+#modal-save-project-button:hover, #modal-cancel-project-button:hover,
+#modal-done-settings-button:hover, #import-data-button-modal:hover, #export-data-button-modal:hover,
+#confirm-yes-button:hover, #confirm-no-button:hover {
+    transform: scale(1.03);
+}
+ #modal-save-task-button:active, #modal-cancel-task-button:active,
+#modal-save-project-button:active, #modal-cancel-project-button:active,
+#modal-done-settings-button:active, #import-data-button-modal:active, #export-data-button-modal:active,
+#confirm-yes-button:active, #confirm-no-button:active {
+    transform: scale(0.98);
+}
