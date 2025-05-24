@@ -897,6 +897,17 @@ function createTaskElement(task, projectName = null) {
     const headerRight = document.createElement('div');
     headerRight.className = 'task-header-right'; // Buttons appear on hover
 
+    // Edit task button (pencil icon)
+    const editButton = document.createElement('button');
+    editButton.className = 'task-action-button edit';
+    editButton.innerHTML = '<i class="fas fa-pencil-alt"></i>';
+    editButton.title = 'Edit Task';
+    editButton.addEventListener('click', (event) => {
+        event.stopPropagation(); // Prevent details toggle
+        openEditTaskModal(task.id); // Call openEditTaskModal
+    });
+    headerRight.appendChild(editButton);
+
     // Button to duplicate task
     const duplicateButton = document.createElement('button');
     duplicateButton.className = 'task-action-button duplicate';
@@ -1981,6 +1992,8 @@ function renderTasks() {
  * @returns {boolean} True if the task was added successfully, false otherwise.
  */
 function addTaskFromModal() {
+    const editingTaskId = saveTaskButton.dataset.editingTaskId;
+
     const taskName = modalTaskNameInput.value.trim();
     const taskDesc = modalTaskDescInput.value.trim();
     const taskDueDate = modalTaskDueDateInput.value || null; // Store as null if empty
@@ -1994,39 +2007,75 @@ function addTaskFromModal() {
     }
     modalAddTaskError.classList.add('hidden'); // Clear error message
 
-    // Determine target project (cannot add to "All Important" view)
-    const targetProjectName = currentProjectName === ALL_PROJECTS_VIEW_KEY ? null : currentProjectName;
-    if (!targetProjectName || !projectsData.projects[targetProjectName]) {
-        console.error("Cannot add task directly to 'All Important Tasks' view or project not found.", targetProjectName);
-        alert("Error: Cannot add tasks to this view or selected project not found.");
-        return false; // Indicate failure
+    if (editingTaskId) {
+        // --- Update Existing Task Logic ---
+        let taskFound = false;
+        let stateSaved = false; // To ensure saveStateForUndo is called only once
+        for (const projName in projectsData.projects) {
+            const projectData = projectsData.projects[projName];
+            if (projectData && Array.isArray(projectData.tasks)) {
+                const taskIndex = projectData.tasks.findIndex(task => task && task.id == editingTaskId);
+                if (taskIndex !== -1) {
+                    if (!stateSaved) {
+                        saveStateForUndo(); // <<< SAVE STATE BEFORE CHANGE
+                        stateSaved = true;
+                    }
+                    projectData.tasks[taskIndex].name = taskName;
+                    projectData.tasks[taskIndex].description = taskDesc;
+                    projectData.tasks[taskIndex].dueDate = taskDueDate;
+                    // Note: Task status is not changed via this modal when editing.
+                    // Subtasks are also not managed here.
+                    taskFound = true;
+                    break; 
+                }
+            }
+        }
+
+        if (taskFound) {
+            saveProjectsData();
+            updateUIFromState(false); // Re-render the board
+            // Modal cleanup (title, button text, data-attribute) is handled by closeTaskModal
+            return true; // Indicate success
+        } else {
+            console.error("Task to update not found:", editingTaskId);
+            modalAddTaskError.textContent = 'Error: Task to update not found. Please try again.';
+            modalAddTaskError.classList.remove('hidden');
+            return false; // Indicate failure
+        }
+
+    } else {
+        // --- Add New Task Logic (Existing Logic) ---
+        const targetProjectName = currentProjectName === ALL_PROJECTS_VIEW_KEY ? null : currentProjectName;
+        if (!targetProjectName || !projectsData.projects[targetProjectName]) {
+            console.error("Cannot add task directly to 'All Important Tasks' view or project not found.", targetProjectName);
+            alert("Error: Cannot add tasks to this view or selected project not found.");
+            return false; // Indicate failure
+        }
+
+        // Create new task object
+        const newTask = {
+            id: generateUniqueId(), // Unique ID
+            name: taskName,
+            description: taskDesc,
+            status: targetStatusForTaskAdd, // Status determined when modal opened
+            isImportant: false, // Default importance
+            dueDate: taskDueDate,
+            subtasks: [] // Start with empty subtasks
+        };
+
+        const projectData = projectsData.projects[targetProjectName];
+        if (!Array.isArray(projectData.tasks)) {
+            console.error("Target project tasks structure invalid:", targetProjectName);
+            projectData.tasks = []; // Attempt to fix
+        }
+
+        saveStateForUndo(); // <<< SAVE STATE BEFORE CHANGE (already correctly placed for new tasks)
+        projectData.tasks.push(newTask);
+
+        saveProjectsData();
+        updateUIFromState(false); // Update the board using unified function
+        return true; // Indicate success
     }
-
-    // Create new task object
-    const newTask = {
-        id: generateUniqueId(), // Unique ID
-        name: taskName,
-        description: taskDesc,
-        status: targetStatusForTaskAdd, // Status determined when modal opened
-        isImportant: false, // Default importance
-        dueDate: taskDueDate,
-        subtasks: [] // Start with empty subtasks
-    };
-
-    // Add task to the project's data
-    const projectData = projectsData.projects[targetProjectName];
-     // Safety check already done above, but keep array check
-    if (!Array.isArray(projectData.tasks)) {
-         console.error("Target project tasks structure invalid:", targetProjectName);
-         projectData.tasks = []; // Attempt to fix
-    }
-
-    saveStateForUndo(); // <<< SAVE STATE BEFORE CHANGE
-    projectData.tasks.push(newTask);
-
-    saveProjectsData();
-    updateUIFromState(false); // Update the board using unified function
-    return true; // Indicate success
 }
 
 /**
@@ -2131,7 +2180,58 @@ function openTaskModal(targetStatus) {
 /** Closes the "Add Task" modal. */
 function closeTaskModal() {
     addTaskModal.classList.remove('open'); // Hide modal (triggers CSS animation)
+
+    // Reset modal if it was in edit mode
+    if (saveTaskButton.hasAttribute('data-editing-task-id')) {
+        const modalTitle = addTaskModal.querySelector('h2');
+        if (modalTitle) {
+            modalTitle.textContent = 'Add New Task';
+        }
+        saveTaskButton.textContent = 'Save Task';
+        saveTaskButton.removeAttribute('data-editing-task-id');
+        // Also clear potential error messages and input fields for consistency
+        modalAddTaskError.classList.add('hidden');
+        modalTaskNameInput.value = '';
+        modalTaskDescInput.value = '';
+        modalTaskDueDateInput.value = '';
+    }
 }
+
+/**
+ * Opens the "Edit Task" modal with the details of a specific task.
+ * @param {string|number} taskId - The ID of the task to edit.
+ */
+function openEditTaskModal(taskId) {
+    const taskInfo = findTaskById(taskId);
+
+    if (taskInfo && taskInfo.task) {
+        const task = taskInfo.task;
+
+        // Populate modal fields
+        modalTaskNameInput.value = task.name;
+        modalTaskDescInput.value = task.description || ''; // Ensure empty string if null/undefined
+        modalTaskDueDateInput.value = task.dueDate || '';   // Ensure empty string if null/undefined
+
+        // Change modal title and save button text
+        const modalTitle = addTaskModal.querySelector('h2');
+        if (modalTitle) {
+            modalTitle.textContent = 'Edit Task';
+        }
+        saveTaskButton.textContent = 'Update Task';
+
+        // Store task ID for saving
+        saveTaskButton.setAttribute('data-editing-task-id', taskId);
+
+        // Hide error message and open modal
+        modalAddTaskError.classList.add('hidden');
+        addTaskModal.classList.add('open');
+        setTimeout(() => modalTaskNameInput.focus(), 50); // Focus name input
+    } else {
+        console.error("Task not found for editing:", taskId);
+        alert("Error: Could not find the task to edit.");
+    }
+}
+
 
 /** Opens the "Add Project" modal. */
 function openProjectModal() {
